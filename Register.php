@@ -20,8 +20,8 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST["register"])) {
     $goal = $_POST['goal'];
     $activity = $_POST['activity'];
     $training_days = isset($_POST['training_days']) ? implode(", ", $_POST['training_days']) : '';
-    $weight_kg = floatval($_POST['weight']); 
-    $height_cm = floatval($_POST['height']);
+    $weight = floatval($_POST['weight']);
+    $height = floatval($_POST['height']);
 
     // Compute BMI (height in meters)
     $bmi = ($height > 0) ? round($weight / (($height / 100) ** 2), 2) : 0;
@@ -36,24 +36,23 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST["register"])) {
     $result = $checkStmt->get_result();
 
     if ($result->num_rows > 0) {
-        $checkStmt->close(); // ✅ close before exiting
+        $checkStmt->close();
         $conn->close();
         $_SESSION['error_message'] = 'This email is already registered.';
         header("Location: Register.php");
         exit();
     }
 
-    // Proceed to insert new user
+    // Insert new user
     $stmt = $conn->prepare("
         INSERT INTO users (
             fullname, email, password,
             age, gender, focus, goal,
-            activity, training_days, 
-            weight_kg, height_cm, bmi
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            activity, training_days, bmi
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     ");
     $stmt->bind_param(
-        "sssisssssddd",
+        "sssisssssd",
         $fullname,
         $email,
         $hashedPassword,
@@ -63,15 +62,19 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST["register"])) {
         $goal,
         $activity,
         $training_days,
-        $weight_kg, // NEW
-        $height_cm,
         $bmi
     );
 
     if ($stmt->execute()) {
+        // ✅ Set session for logged-in client
+        $client_id = $stmt->insert_id;
+        $_SESSION['client_id'] = $client_id;
+        $_SESSION['client_name'] = $fullname; // optional
+
         $stmt->close();
         $checkStmt->close();
         $conn->close();
+
         $_SESSION['success_message'] = 'Registration successful!';
         header("Location: MembershipPayment.php");
         exit();
@@ -86,6 +89,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST["register"])) {
     }
 }
 ?>
+
 
 <!DOCTYPE html>
 <html lang="en">
